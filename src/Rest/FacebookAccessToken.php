@@ -2,7 +2,7 @@
 namespace Blimp\Accounts\Rest;
 
 use Blimp\Accounts\Documents\Account;
-use Blimp\Base\BlimpException;
+use Blimp\Http\BlimpHttpException;
 use Blimp\Accounts\Oauth2\Oauth2AccessToken;
 use Blimp\Accounts\Oauth2\Protocol;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -102,7 +102,7 @@ class FacebookAccessToken extends Oauth2AccessToken {
 
                 if ($check != null) {
                     // TODO
-                    throw new BlimpException(Response::HTTP_CONFLICT, "Duplicate Id", "Id strategy set to NONE and provided Id already exists");
+                    throw new BlimpHttpException(Response::HTTP_CONFLICT, "Duplicate Id", "Id strategy set to NONE and provided Id already exists");
                 }
 
                 $dm->persist($account);
