@@ -27,7 +27,7 @@ class FacebookAccessToken extends Oauth2AccessToken {
     }
 
     public function getScope() {
-        return $this->api['config']['facebook']['client_scopes'];
+        return $this->api['config']['facebook']['scope'];
     }
 
     public function getDisplay() {
@@ -84,6 +84,9 @@ class FacebookAccessToken extends Oauth2AccessToken {
             ];
 
             $profile_data = Protocol::get('https://graph.facebook.com/me', $params);
+            if($profile_data instanceof Response) {
+                return $profile_data;
+            }
 
             if ($profile_data != null && $profile_data['id'] != null) {
                 $id = 'facebook-' . $profile_data['id'];
@@ -100,15 +103,17 @@ class FacebookAccessToken extends Oauth2AccessToken {
 
                 $check = $dm->find('Blimp\Accounts\Documents\Account', $id);
 
+                $resource_uri = '/accounts/' . $account->getId();
+
                 if ($check != null) {
-                    // TODO
-                    throw new BlimpHttpException(Response::HTTP_CONFLICT, "Duplicate Id", "Id strategy set to NONE and provided Id already exists");
+                    $response = new JsonResponse((object) ["uri" => $resource_uri], Response::HTTP_FOUND);
+                    $response->headers->set('Location', $resource_uri);
+
+                    return $response;
                 }
 
                 $dm->persist($account);
                 $dm->flush();
-
-                $resource_uri = $this->request->getPathInfo() . '/' . $account->getId();
 
                 $response = new JsonResponse((object) ["uri" => $resource_uri], Response::HTTP_CREATED);
                 $response->headers->set('Location', $resource_uri);

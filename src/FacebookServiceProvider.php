@@ -19,6 +19,7 @@ class FacebookServiceProvider implements ServiceProviderInterface {
                             ->children()
                                 ->scalarNode('client_id')->cannotBeEmpty()->end()
                                 ->scalarNode('client_secret')->cannotBeEmpty()->end()
+                                ->scalarNode('scope')->defaultValue('email')->end()
                                 ->scalarNode('fields')->defaultValue('id,name,link,gender,email,picture')->end()
                                 ->booleanNode('long_lived_access_token')->defaultFalse()->end()
                             ->end()
