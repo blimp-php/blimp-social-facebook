@@ -4,11 +4,16 @@ namespace Blimp\Accounts;
 use Pimple\ServiceProviderInterface;
 use Pimple\Container;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
+use Blimp\Accounts\GrantTypes\Facebook;
 
 class FacebookServiceProvider implements ServiceProviderInterface {
     public function register(Container $api) {
         $api->extend('blimp.extend', function ($status, $api) {
             if($status) {
+                $api['security.oauth.grant.urn:blimp:accounts:facebook'] = function() {
+                    return new Facebook();
+                };
+
                 if($api->offsetExists('config.root')) {
                     $api->extend('config.root', function ($root, $api) {
                         $tb = new TreeBuilder();

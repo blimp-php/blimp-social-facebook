@@ -75,10 +75,10 @@ class FacebookAccessToken extends Oauth2AccessToken {
     }
 
     public function processAccountData(array $access_token) {
-        if ($access_token != NULL && $access_token['access_token'] != NULL) {
+        if ($access_token != NULL && (!empty($access_token['access_token']) || !empty($access_token['accessToken']))) {
             /* Get profile_data */
             $params = [
-                'access_token' => $access_token['access_token'],
+                'access_token' => !empty($access_token['access_token']) != NULL ? $access_token['access_token'] : $access_token['accessToken'],
                 'fields' => $this->api['config']['facebook']['fields'],
                 'type' => 'small'
             ];
@@ -89,41 +89,52 @@ class FacebookAccessToken extends Oauth2AccessToken {
             }
 
             if ($profile_data != null && $profile_data['id'] != null) {
-                $id = 'facebook-' . $profile_data['id'];
-                $profile_url = $profile_data['link'];
-                $mug = 'https://graph.facebook.com/' . $profile_data['id'] . '/picture?type=large';
-
-                $account = new Account();
-                $account->setId($id);
-                $account->setType('facebook');
-                $account->setAuthData($access_token);
-                $account->setProfileData($profile_data);
+                if($access_token['userID'] != null && $profile_data['id'] != $access_token['userID']) {
+                    throw new BlimpHttpException(Response::HTTP_UNAUTHORIZED, "Invalid access_token");
+                }
+                
+                $id = hash_hmac('ripemd160', 'facebook-' . $profile_data['id'], 'obscure');
 
                 $dm = $this->api['dataaccess.mongoodm.documentmanager']();
 
-                $check = $dm->find('Blimp\Accounts\Documents\Account', $id);
+                $account = $dm->find('Blimp\Accounts\Documents\Account', $id);
 
+                if ($account != null) {
+                    $code = Response::HTTP_FOUND;
+                } else {
+                    $code = Response::HTTP_CREATED;
+                    
+                    $account = new Account();
+                    $account->setId($id);
+                    $account->setType('facebook');
+                }
+                
                 $resource_uri = '/accounts/' . $account->getId();
-
-                if ($check != null) {
-                    $response = new JsonResponse((object) ["uri" => $resource_uri], Response::HTTP_FOUND);
-                    $response->headers->set('Location', $resource_uri);
-
-                    return $response;
+                
+                $secret = NULL;
+                if($account->getOwner() == NULL) {
+                    $bytes = openssl_random_pseudo_bytes(16);
+                    $hex   = bin2hex($bytes);
+                    $secret = password_hash($hex, PASSWORD_DEFAULT);                
                 }
 
+                $account->setBlimpSecret($secret);
+                $account->setAuthData($access_token);
+                $account->setProfileData($profile_data);
+                
                 $dm->persist($account);
                 $dm->flush();
 
-                $response = new JsonResponse((object) ["uri" => $resource_uri], Response::HTTP_CREATED);
-                $response->headers->set('Location', $resource_uri);
+                $response = new JsonResponse((object) ["uri" => $resource_uri, "secret" => $secret], $code);
+                $response->headers->set('AccountUri', $resource_uri);
+                $response->headers->set('AccountSecret', $secret);
 
                 return $response;
             } else {
-                throw new KRestException(KHTTPResponse::NOT_FOUND, KEXCEPTION_RESOURCE_NOT_FOUND, profile_data);
+                throw new BlimpHttpException(Response::HTTP_NOT_FOUND, "Resource not found");
             }
         } else {
-            throw new KRestException(KHTTPResponse::UNAUTHORIZED, KEXCEPTION_FACEBOOK_ACCESS_DENIED);
+            throw new BlimpHttpException(Response::HTTP_UNAUTHORIZED, "No access_token");
         }
     }
 }
