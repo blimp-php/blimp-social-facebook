@@ -74,11 +74,11 @@ class FacebookAccessToken extends Oauth2AccessToken {
         return $access_token_data;
     }
 
-    public function processAccountData(array $access_token) {
+    public function processAccountData($access_token) {
         if ($access_token != NULL && (!empty($access_token['access_token']) || !empty($access_token['accessToken']))) {
             /* Get profile_data */
             $params = [
-                'access_token' => !empty($access_token['access_token']) != NULL ? $access_token['access_token'] : $access_token['accessToken'],
+                'access_token' => !empty($access_token['access_token']) ? $access_token['access_token'] : $access_token['accessToken'],
                 'fields' => $this->api['config']['facebook']['fields'],
                 'type' => 'small'
             ];
